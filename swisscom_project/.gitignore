@@ -1,0 +1,12 @@
+.cache
+.idea
+.mypy_cache
+.pip-cache/
+.pyre/
+.pytest_cache/
+.vscode/
+.venv
+*.pyc
+/env
+/etc
+*.mo

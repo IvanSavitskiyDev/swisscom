@@ -1,8 +1,11 @@
 import pytest
 import requests_mock
-from swisscom_project.classic_variant.connector import Connector
+from swisscom_project.async_variant.connector import AsyncConnector
 from swisscom_project.common.exceptions import (
-    HostRespondingError, RollBackOperationError)
+    HostRespondingError,
+    RollBackOperationError,
+)
+
 HOSTS = [
     "node01.app.internal.com",
     "node02.app.internal.com",
@@ -13,7 +16,7 @@ HOSTS = [
 
 @pytest.fixture(scope="module")
 def connector():
-    return Connector(hosts=HOSTS)
+    return AsyncConnector(hosts=HOSTS)
 
 
 @pytest.mark.parametrize(
@@ -24,7 +27,7 @@ def connector():
     ),
 )
 @pytest.mark.parametrize("create_or_delete", (True, False))
-def test_ok(connector, status_code_list, create_or_delete):
+def test_async_ok(connector, status_code_list, create_or_delete):
     # We check the work both in the absence
     # of records on all hosts and in the presence
     with requests_mock.Mocker(real_http=True) as m:
@@ -39,7 +42,7 @@ def test_ok(connector, status_code_list, create_or_delete):
 
 
 @pytest.mark.parametrize("create_or_delete", (True, False))
-def test_fail_host_responding(connector, create_or_delete):
+def test_async_fail_host_responding(connector, create_or_delete):
     # If one of the hosts does not respond
     # during the verification phase, an exception is thrown
 
@@ -54,7 +57,7 @@ def test_fail_host_responding(connector, create_or_delete):
 
 
 @pytest.mark.parametrize("create_or_delete", (True, False))
-def test_fail_roll_back(connector, create_or_delete):
+def test_async_fail_roll_back(connector, create_or_delete):
     # If one of the hosts does not respond
     # during the verification phase, an exception is thrown
 

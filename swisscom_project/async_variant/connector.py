@@ -1,7 +1,7 @@
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-import requests
+import grequests
 from swisscom_project.common.dataclasses import HttpMethod, RequestState
 from swisscom_project.common.exceptions import (
     HostRespondingError,
@@ -11,7 +11,7 @@ from swisscom_project.common.exceptions import (
 logging.basicConfig(level=logging.INFO)
 
 
-class Connector:
+class AsyncConnector:
     def __init__(self, hosts: List[str]) -> None:
         self.hosts = hosts
 
@@ -108,28 +108,40 @@ class Connector:
         logging.info("Successfully delete records for all nodes")
 
     @staticmethod
+    def _state_machine(
+        status_code: int, http_method: Optional[HttpMethod] = None
+    ) -> RequestState:
+        """
+        Simple state machine for our dataclasses
+        """
+        if status_code == 404:
+            if http_method is None:
+                current_request = RequestState.NOT_FOUND
+            else:
+                current_request = RequestState.FAIL
+
+        elif status_code == 200:
+            current_request = RequestState.SUCCESS
+
+        else:
+            current_request = RequestState.FAIL
+
+        return current_request
+
     def _check_existing(
-        local_hosts: List[str], group_id: str
+        self, local_hosts: List[str], group_id: str
     ) -> Dict[str, RequestState]:
         """
         the method checks for the presence of records on the hosts
         before creating / deleting and for the availability of hosts
         """
-        result: Dict[str, RequestState] = {}
         payload: Dict[str, str] = {"group_id": group_id}
-        for host in local_hosts:
-            response = requests.get(f"http://{host}/v1/group/", params=payload)
-
-            if response.status_code == 404:
-                current_request = RequestState.NOT_FOUND
-
-            elif response.status_code == 200:
-                current_request = RequestState.SUCCESS
-
-            else:
-                current_request = RequestState.FAIL
-
-            result.update({host: current_request})
+        full_urls = [f"http://{host}/v1/group/" for host in local_hosts]
+        rs = (grequests.get(url, params=payload) for url in full_urls)
+        result: Dict[str, RequestState] = {
+            local_hosts[index]: self._state_machine(value.status_code)
+            for index, value in enumerate(grequests.map(rs))
+        }
 
         hosts_check_failed: List[str] = [
             host for host, status in result.items() if status == RequestState.FAIL
@@ -142,34 +154,21 @@ class Connector:
 
         return result
 
-    @staticmethod
     def _batch_api_request(
-        http_method: HttpMethod, local_hosts: List[str], group_id: str
+        self, http_method: HttpMethod, local_hosts: List[str], group_id: str
     ) -> Dict[str, RequestState]:
         """
         batch request for create/delete records,
         used by switching by the passed http_method var
         """
-        result: Dict[str, RequestState] = {}
         payload: Dict[str, str] = {"group_id": group_id}
+        full_urls = [f"http://{host}/v1/group/" for host in local_hosts]
+        if http_method == HttpMethod.POST:
+            rs = (grequests.post(url, params=payload) for url in full_urls)
+        else:
+            rs = (grequests.delete(url, params=payload) for url in full_urls)
 
-        for host in local_hosts:
-            try:
-                if http_method == HttpMethod.POST:
-                    response = requests.post(
-                        f"http://{host}/v1/group/", json=payload
-                    ).status_code
-
-                else:
-                    response = requests.delete(
-                        f"http://{host}/v1/group/", json=payload
-                    ).status_code
-
-            except requests.exceptions.RequestException:
-                response = 400
-
-            result.update(
-                {host: RequestState.SUCCESS if response == 200 else RequestState.FAIL}
-            )
-
-        return result
+        return {
+            local_hosts[index]: self._state_machine(value.status_code, http_method)
+            for index, value in enumerate(grequests.map(rs))
+        }

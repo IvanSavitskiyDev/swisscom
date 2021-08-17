@@ -16,9 +16,8 @@ class Connector:
 
     def create(self, group_id: str) -> None:
         """
-
-        :param group_id:
-        :return:
+        The method allows you to create records on all hosts
+        from the list 'self.hosts' at the same time
         """
         logging.info(f"Start creating records on hosts: {self.hosts}")
         check_existing: Dict[str, RequestState] = self._check_existing(
@@ -63,9 +62,8 @@ class Connector:
 
     def delete(self, group_id: str) -> None:
         """
-
-        :param group_id:
-        :return:
+        The method allows you to delete records on all hosts
+        from the list 'self.hosts' at the same time
         """
         logging.info(f"Start removing records on hosts: {self.hosts}")
         check_existing: Dict[str, RequestState] = self._check_existing(
@@ -113,10 +111,8 @@ class Connector:
         local_hosts: List[str], group_id: str
     ) -> Dict[str, RequestState]:
         """
-
-        :param local_hosts:
-        :param group_id:
-        :return:
+        the method checks for the presence of records on the hosts
+        before creating / deleting and for the availability of hosts
         """
         result: Dict[str, RequestState] = {}
         payload: Dict[str, str] = {"group_id": group_id}
@@ -150,11 +146,8 @@ class Connector:
         http_method: HttpMethod, local_hosts: List[str], group_id: str
     ) -> Dict[str, RequestState]:
         """
-
-        :param http_method:
-        :param local_hosts:
-        :param group_id:
-        :return:
+        batch request for create/delete records,
+        used by switching by the passed http_method
         """
         result: Dict[str, RequestState] = {}
         payload: Dict[str, str] = {"group_id": group_id}

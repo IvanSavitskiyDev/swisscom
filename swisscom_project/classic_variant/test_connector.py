@@ -3,7 +3,6 @@ import requests_mock
 from swisscom_project.classic_variant.connector import Connector
 from swisscom_project.classic_variant.exceptions import (
     HostRespondingError, RollBackOperationError)
-
 HOSTS = [
     "node01.app.internal.com",
     "node02.app.internal.com",
